@@ -113,7 +113,7 @@ data_clean <- data %>%
 con <- mongo(
   collection = "patient-collection",
   db = "hospital_db",
-  url = "mongodb+srv://team:Group4@dsb-cluster.0auppui.mongodb.net/"
+  url = "YOUR_MONGODB_URL"
 )
 
 # ==========================================
