@@ -10,6 +10,7 @@ library(lubridate)
 library(stringr)
 library(jsonlite)
 library(rmarkdown)
+library(plotly)
 
 # ==========================================
 # CONEXIONES
@@ -94,6 +95,7 @@ mod_data_server <- function(id, data){
           "```{r setup, include=FALSE}",
           "library(dplyr)",
           "library(ggplot2)",
+          "library(plotly)",
           "df <- params$data",
           "```",
 
@@ -287,12 +289,16 @@ mod_data_server <- function(id, data){
           "## Age distribution",
 
           "```{r, echo=FALSE, warning=FALSE}",
-          "df_clean <- df %>%",
-          "  filter(!is.na(Age), Age <= 120)",
+          "df_clean <- df",
           "",
-          "ggplot(df_clean, aes(x=Age)) +",
-          "  geom_histogram(bins=20, fill='#A8DADC', color='white') +",
+          "gg <- df_clean %>%",
+          "  count(Age) %>%",
+          "  ggplot(aes(x=Age, y=n, text=paste0('Age: ', Age, '<br>Count: ', n))) +",
+          "  geom_col(fill='#A8DADC') +",
+          "  labs(y='count') +",
           "  theme_minimal()",
+          "",
+          "plotly::ggplotly(gg, tooltip='text')",
           "```",
 
           "",
@@ -325,17 +331,13 @@ mod_data_server <- function(id, data){
           "## Weight vs Height",
 
           "```{r, echo=FALSE, warning=FALSE}",
-          "df_clean <- df %>%",
-          "  filter(",
-          "    !is.na(`Height (m)`),",
-          "    !is.na(`Weight (kg)`),",
-          "    `Height (m)` <= 3,",
-          "    `Weight (kg)` <= 300",
-          "  )",
+          "df_clean <- df",
           "",
-          "ggplot(df_clean, aes(x=`Height (m)`, y=`Weight (kg)`)) +",
+          "gg <- ggplot(df_clean, aes(x=`Height (m)`, y=`Weight (kg)`)) +",
           "  geom_point(alpha=0.6, color='#90DBF4') +",
           "  theme_minimal()",
+          "",
+          "plotly::ggplotly(gg)",
           "```",
 
           "",
@@ -405,12 +407,16 @@ mod_data_server <- function(id, data){
           "## Dosage distribution",
 
           "```{r, echo=FALSE}",
-          "df_clean <- df %>%",
-          "  filter(!is.na(`Dosage (mg)`), `Dosage (mg)` <= 1000)",
+          "df_clean <- df",
           "",
-          "ggplot(df_clean, aes(x=`Dosage (mg)`)) +",
-          "  geom_histogram(bins=20, fill='#CDEAC0', color='white') +",
+          "gg <- df_clean %>%",
+          "  count(`Dosage (mg)`) %>%",
+          "  ggplot(aes(x=`Dosage (mg)`, y=n, text=paste0('Dosage: ', `Dosage (mg)`, '<br>Count: ', n))) +",
+          "  geom_col(fill='#CDEAC0') +",
+          "  labs(y='count') +",
           "  theme_minimal()",
+          "",
+          "plotly::ggplotly(gg, tooltip='text')",
           "```",
 
           "",
@@ -522,7 +528,20 @@ mod_quality_ui <- function(id){
     selectInput(ns("acc_col"), "Column:", choices = NULL),
 
     tableOutput(ns("acc_metrics")),
-    tableOutput(ns("acc_table"))
+    tableOutput(ns("acc_table")),
+
+    hr(),
+
+    h3("Data Visualization"),
+
+    plotlyOutput(ns("age_plot")),
+    plotOutput(ns("sex_plot")),
+    plotlyOutput(ns("wh_plot")),
+    plotOutput(ns("blood_plot")),
+    plotOutput(ns("diag_plot")),
+    plotlyOutput(ns("dosage_plot")),
+    plotOutput(ns("smoker_plot")),
+    plotOutput(ns("doctor_plot"))
 
   )
 
@@ -815,6 +834,162 @@ mod_quality_server <- function(id, data){
 
     output$acc_table <- renderTable({
       get_accuracy(data(), input$acc_col)
+    })
+
+    # ==========================================
+    # EXTRA PLOTS 
+    # ==========================================
+
+    # AGE
+    output$age_plot <- plotly::renderPlotly({
+      df <- data()
+      
+      gg <- df %>%
+        count(Age) %>%
+        ggplot(aes(x=Age, y=n,
+                  text=paste0("Age: ", Age, "<br>Count: ", n))) +
+        geom_col(fill='#A8DADC') +
+        labs(y="count") +
+        ggtitle("Age distribution") +
+        theme_minimal()
+      
+      plotly::ggplotly(gg, tooltip="text")
+    })
+
+    # SEX
+    output$sex_plot <- renderPlot({
+      df <- data()
+      
+      df$Sex[is.na(df$Sex)] <- "NA"
+      df$Sex <- factor(df$Sex, levels=c("Male","Female","NA"))
+      
+      ggplot(df, aes(x=Sex, fill=Sex)) +
+        geom_bar() +
+        scale_fill_manual(values=c(
+          "Male"="#BDE0FE",
+          "Female"="#FFC8DD",
+          "NA"="#D3D3D3"
+        )) +
+        ggtitle("Sex distribution") +
+        theme_minimal() +
+        guides(fill="none")
+    })
+
+    # WEIGHT vs HEIGHT
+    output$wh_plot <- plotly::renderPlotly({
+      df <- data()
+      
+      gg <- ggplot(df, aes(x=`Height (m)`, y=`Weight (kg)`)) +
+        geom_point(alpha=0.6, color='#90DBF4', na.rm=TRUE) +
+        ggtitle("Weight vs Height") +
+        theme_minimal()
+      
+      plotly::ggplotly(gg)
+    })
+
+    # BLOOD
+    output$blood_plot <- renderPlot({
+      df <- data()
+      
+      df$`Blood Type`[is.na(df$`Blood Type`)] <- "NA"
+      
+      df$`Blood Type` <- factor(df$`Blood Type`,
+        levels=c("A+","A-","B+","B-","AB+","AB-","O+","O-","NA"))
+      
+      ggplot(df, aes(x=`Blood Type`, fill=`Blood Type`)) +
+        geom_bar() +
+        scale_fill_manual(values=c(
+          "A+"='#FFF3B0',"A-"='#FFE5B4',
+          "B+"='#FFD6A5',"B-"='#FFADAD',
+          "AB+"='#E2C2FF',"AB-"='#CDB4DB',
+          "O+"='#BDB2FF',"O-"='#A0C4FF',
+          "NA"='#D3D3D3'
+        )) +
+        ggtitle("Blood type distribution") +
+        theme_minimal() +
+        guides(fill="none")
+    })
+
+    # DIAGNOSIS
+    output$diag_plot <- renderPlot({
+      df <- data()
+      
+      df$`Diagnosis Code`[is.na(df$`Diagnosis Code`)] <- "NA"
+      
+      diag_levels <- sort(unique(df$`Diagnosis Code`))
+      diag_levels <- c(diag_levels[diag_levels!="NA"], "NA")
+      
+      df$`Diagnosis Code` <- factor(df$`Diagnosis Code`, levels=diag_levels)
+      
+      cols <- rep('#90DBF4', length(diag_levels))
+      cols[length(cols)] <- '#D3D3D3'
+      names(cols) <- diag_levels
+      
+      ggplot(df, aes(x=`Diagnosis Code`, fill=`Diagnosis Code`)) +
+        geom_bar() +
+        scale_fill_manual(values=cols) +
+        ggtitle("Diagnosis distribution") +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle=45, hjust=1)) +
+        guides(fill="none")
+    })
+
+    # DOSAGE
+    output$dosage_plot <- plotly::renderPlotly({
+      df <- data()
+      
+      gg <- df %>%
+        count(`Dosage (mg)`) %>%
+        ggplot(aes(x=`Dosage (mg)`, y=n,
+                  text=paste0("Dosage: ", `Dosage (mg)`, "<br>Count: ", n))) +
+        geom_col(fill='#CDEAC0') +
+        labs(y="count") +
+        ggtitle("Dosage distribution") +
+        theme_minimal()
+      
+      plotly::ggplotly(gg, tooltip="text")
+    })
+
+    # SMOKER
+    output$smoker_plot <- renderPlot({
+      df <- data()
+      
+      df$Smoker[is.na(df$Smoker)] <- "NA"
+      df$Smoker <- factor(df$Smoker, levels=c("Yes","No","NA"))
+      
+      ggplot(df, aes(x=Smoker, fill=Smoker)) +
+        geom_bar() +
+        scale_fill_manual(values=c(
+          "Yes"='#FFD6A5',
+          "No"='#BDE0FE',
+          "NA"='#D3D3D3'
+        )) +
+        ggtitle("Smoker distribution") +
+        theme_minimal() +
+        guides(fill="none")
+    })
+
+    # DOCTOR
+    output$doctor_plot <- renderPlot({
+      df <- data()
+      
+      df$Doctor[is.na(df$Doctor)] <- "NA"
+      
+      doctor_levels <- sort(unique(df$Doctor))
+      doctor_levels <- c(doctor_levels[doctor_levels!="NA"], "NA")
+      
+      df$Doctor <- factor(df$Doctor, levels=doctor_levels)
+      
+      cols <- rep('#6FA8DC', length(doctor_levels))
+      cols[length(cols)] <- '#D3D3D3'
+      names(cols) <- doctor_levels
+      
+      ggplot(df, aes(x=Doctor, fill=Doctor)) +
+        geom_bar() +
+        scale_fill_manual(values=cols) +
+        ggtitle("Doctor distribution") +
+        theme_minimal() +
+        guides(fill="none")
     })
 
   })
