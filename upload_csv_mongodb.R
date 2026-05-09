@@ -38,6 +38,8 @@ data_clean <- data %>%
       TRUE ~ NA_character_
     )),
 
+    # Age
+
     # Sex
     Sex = case_when(
       str_to_lower(Sex) %in% c("m","male") ~ "Male",
@@ -49,7 +51,7 @@ data_clean <- data %>%
     # Weight 
     Weight = as.numeric(gsub("[^0-9.]", "", Weight)),
 
-    # Height (SIN conversión cm→m)
+    # Height
     Height = suppressWarnings(as.numeric(gsub("[^0-9.]", "", Height))),
     Height = round(Height, 2),
 
@@ -66,7 +68,7 @@ data_clean <- data %>%
       TRUE ~ NA_character_
     ),
 
-    # Dosage (SIN tocar valores)
+    # Dosage
     Dosage_mg = suppressWarnings(as.numeric(gsub("[^0-9.]", "", Dosage_mg))),
 
     # Smoker
@@ -91,7 +93,7 @@ data_clean <- data %>%
   distinct(Patient_ID, .keep_all = TRUE) %>%
 
   # ==========================================
-  # 🔥 RENOMBRE COLUMNAS (ORDEN ORIGINAL)
+  # RENOMBRAR COLUMNAS (ORDEN ORIGINAL)
   # ==========================================
   rename(
     "Patient ID" = Patient_ID,

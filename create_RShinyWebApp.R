@@ -1131,8 +1131,64 @@ mod_manage_server <- function(id, data){
     user_id <- session$request$REMOTE_ADDR
 
     # ==========================================
-    # ACTIONS
+    # BUILD DATA
     # ==========================================
+    build_data <- function(){
+
+      to_na <- function(x){
+
+        if(is.null(x) || x == "NA" || x == ""){
+          return(NA)
+        }
+
+        return(x)
+
+      }
+
+      data.frame(
+
+        "Patient ID" = input$id,
+
+        "Birth Date" =
+          ifelse(is.null(input$birth), NA, as.character(input$birth)),
+
+        "Age" =
+          ifelse(is.na(input$age), NA, input$age),
+
+        "Sex" =
+          to_na(input$sex),
+
+        "Weight (kg)" =
+          ifelse(is.na(input$weight), NA, input$weight),
+
+        "Height (m)" =
+          ifelse(is.na(input$height), NA, input$height),
+
+        "Blood Type" =
+          to_na(input$blood),
+
+        "Diagnosis Code" =
+          to_na(input$diagnosis),
+
+        "Dosage (mg)" =
+          ifelse(is.na(input$dosage), NA, input$dosage),
+
+        "Smoker" =
+          to_na(input$smoker),
+
+        "Doctor" =
+          to_na(input$doctor),
+
+        check.names = FALSE
+
+      )
+
+    }
+
+    # ==========================================
+    # ACTION
+    # ==========================================
+
     observeEvent(input$action, {
 
       all_fields <- c(
@@ -1176,30 +1232,6 @@ mod_manage_server <- function(id, data){
       } else if(input$action == "DELETE"){
 
         lapply(all_fields, shinyjs::disable)
-
-      }
-
-    })
-
-    # ==========================================
-    # DIAGNOSIS
-    # ==========================================
-    observe({
-
-      df <- data()
-
-      if("Diagnosis Code" %in% names(df)){
-
-        vals <- sort(unique(df$`Diagnosis Code`))
-
-        vals <- vals[!is.na(vals)]
-
-        updateSelectInput(
-          session,
-          "diagnosis",
-          choices = c("NA", vals),
-          selected = "NA"
-        )
 
       }
 
@@ -1287,85 +1319,6 @@ mod_manage_server <- function(id, data){
       )
 
     })
-
-    # ==========================================
-    # AGE AUTO CALC
-    # ==========================================
-    observeEvent(input$birth, {
-
-      if(input$action == "CREATE"){
-
-        age_calc <- floor(
-          time_length(
-            interval(input$birth, Sys.Date()),
-            "years"
-          )
-        )
-
-        updateNumericInput(
-          session,
-          "age",
-          value = age_calc
-        )
-
-      }
-
-    })
-
-    # ==========================================
-    # BUILD DATA
-    # ==========================================
-    build_data <- function(){
-
-      to_na <- function(x){
-
-        if(is.null(x) || x == "NA" || x == ""){
-          return(NA)
-        }
-
-        return(x)
-
-      }
-
-      data.frame(
-
-        "Patient ID" = input$id,
-
-        "Birth Date" =
-          ifelse(is.null(input$birth), NA, as.character(input$birth)),
-
-        "Age" =
-          ifelse(is.na(input$age), NA, input$age),
-
-        "Sex" =
-          to_na(input$sex),
-
-        "Weight (kg)" =
-          ifelse(is.na(input$weight), NA, input$weight),
-
-        "Height (m)" =
-          ifelse(is.na(input$height), NA, input$height),
-
-        "Blood Type" =
-          to_na(input$blood),
-
-        "Diagnosis Code" =
-          to_na(input$diagnosis),
-
-        "Dosage (mg)" =
-          ifelse(is.na(input$dosage), NA, input$dosage),
-
-        "Smoker" =
-          to_na(input$smoker),
-
-        "Doctor" =
-          to_na(input$doctor),
-
-        check.names = FALSE
-
-      )
-
-    }
 
     # ==========================================
     # CREATE
@@ -1627,6 +1580,54 @@ mod_manage_server <- function(id, data){
       data(con$find())
 
       output$msg <- renderText("🗑️ Deleted")
+
+    })
+
+    # ==========================================
+    # AGE
+    # ==========================================
+    observeEvent(input$birth, {
+
+      if(input$action == "CREATE"){
+
+        age_calc <- floor(
+          time_length(
+            interval(input$birth, Sys.Date()),
+            "years"
+          )
+        )
+
+        updateNumericInput(
+          session,
+          "age",
+          value = age_calc
+        )
+
+      }
+
+    })
+
+    # ==========================================
+    # DIAGNOSIS
+    # ==========================================
+    observe({
+
+      df <- data()
+
+      if("Diagnosis Code" %in% names(df)){
+
+        vals <- sort(unique(df$`Diagnosis Code`))
+
+        vals <- vals[!is.na(vals)]
+
+        updateSelectInput(
+          session,
+          "diagnosis",
+          choices = c("NA", vals),
+          selected = "NA"
+        )
+
+      }
 
     })
 
